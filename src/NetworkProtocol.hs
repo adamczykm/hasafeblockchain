@@ -24,7 +24,7 @@ data ReceiveConfig = ReceiveBlock (Maybe Integer)
                    | ReceiveNonBlock (Maybe Integer)
                    deriving(Show, Eq)
 
-class MonadIO m => MonadNetworkProtocol m where
+class (Monad m, MonadIO m) => MonadNetworkProtocol m where
 
   type NetworkConfig m :: *
   type NetworkState m :: *
@@ -35,9 +35,9 @@ class MonadIO m => MonadNetworkProtocol m where
 
   networkConnect :: NetworkConfig m -> m (Either NetworkError (NetworkState m))
 
-  networkBroadcast :: Serializable msg => NetworkState m -> msg -> m (Either NetworkError ())
+  networkBroadcast :: Binary msg => NetworkState m -> msg -> m (Either NetworkError ())
 
-  networkReceive :: Serializable a => NetworkState m -> ReceiveConfig -> m (Either NetworkError a)
+  networkReceive :: Binary a => NetworkState m -> ReceiveConfig -> m (Either NetworkError a)
 
   networkDisconnect :: NetworkState m -> m (NetworkState m)
 
