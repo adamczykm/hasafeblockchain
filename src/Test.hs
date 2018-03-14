@@ -17,10 +17,11 @@ import Data.Text (concat)
 import Protolude
 
 
+mainTest :: Text -> IO ()
 mainTest = _unpackIO . testM
 
 
-testM :: MonadNetworkProtocol m => [Char] -> m ()
+testM :: MonadNetworkProtocol m => Text -> m ()
 testM nm = do
   eSt <- getDefaultConfig >>= networkConnect
   case eSt of
