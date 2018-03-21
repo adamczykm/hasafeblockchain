@@ -3,10 +3,11 @@
 
 module Serialization where
 
-import Protolude
-import Data.Binary
+import           Data.Binary
+import           Protolude
 
 data SerializationError = BinaryDecodingError Text
+  deriving(Read,Show,Eq)
 
 class Serializable a where
   serialize :: a -> LByteString
@@ -19,3 +20,8 @@ class Serializable a where
   deserialize = bimap (\(_,_, errString) -> BinaryDecodingError (show errString))
                       (\(_,_, a) -> a)
                 . decodeOrFail
+
+
+instance Serializable Int
+instance Serializable Integer
+
