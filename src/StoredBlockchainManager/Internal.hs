@@ -94,7 +94,7 @@ readStoredBlockchain =  getStoredBlockCount >>= \cnt -> sequence <$> mapM readBl
 
 -- | Given a way to access current blockchain data synchronizes its stored counterpart.
 -- This function will return only after entire chains are equal.
--- If blockchain gets updated rapidly and storage is really slow it might never finished.
+-- If blockchain gets updated rapidly and storage is really slow it might never finish.
 -- But that's very unlikely.
 synchronize :: (MonadReader StoredBlockchainManagerConfig m, MonadIO m, Eq a, Serializable a) => IO Integer -> (Integer -> IO a) -> m (Either StoredBlockchainManagerError ())
 synchronize getMemBlockCount getMemBlock = getStoredBlockCount >>= worker
