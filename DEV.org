@@ -1,0 +1,30 @@
+* Roadmap
+** Next
+
+*** TODO stored blockchain synchronization tests
+
+* Leftouts and provisional code fragments
+ 
+
+* Refactoring candidates
+
+** IO for factoring out
+
+*** [[file:src/StoredBlockchainManager.hs][StoredBlockchainManager.hs]]
+
+Currently function takes IO actions for accessing current state of blockchain or a filesystem.
+Filesystem access could be realised with "service interpreter pattern".
+
+
+* Future plans
+  
+* Distribution related
+
+** TODO add req versions to dependencies in cabal and stack files
+
+
+* Warnings for resolution
+
+** TODO [[file:src/StoredBlockchainManager/Internal.hs][read blockchain security]]
+-- WARNING: blocks should always be validated when building in-memory blockchain.
+-- TODO: decide on a way to make it secure (return unsafety flag in types)
