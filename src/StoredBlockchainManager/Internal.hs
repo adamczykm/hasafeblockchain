@@ -11,6 +11,8 @@ import           Serialization
 import           Validation
 -- import MonadBlockchain
 import           Control.Arrow        (left)
+
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import           System.IO.Error
 import    System.Directory
@@ -63,10 +65,12 @@ getStoredBlockCount = assureBlockchainDir >>= bool (return 0) (hasNext 0)
 readBlock :: (MonadReader StoredBlockchainManagerConfig m, MonadIO m, Serializable a) => Integer -> m (Either StoredBlockchainManagerError (Untrusted a))
 readBlock ix = do
   fpath <- getBlockPath ix
-  bindata <- liftIO $ try $ BL.readFile fpath
+  -- bindata <- liftIO $ try $ BL.readFile fpath
+
+  bindata <- liftIO $ try $ BS.readFile fpath
   return $ case bindata of
     Left e -> Left $ StoredBlockchainManagerFileReadError e
-    Right bts -> left StoredBlockchainManagerSerializationError (deserialize bts)
+    Right bts -> left StoredBlockchainManagerSerializationError (deserialize $ toS bts)
 
 
 
@@ -138,7 +142,7 @@ waitForLastSynchronizationResults tk@(SynchronizationProcessToken _ _ nextSchedu
 
   case syncStatus of
     -- currently theres no synchronization in process
-    Right x   -> traceShow "wait: currently theres no synchronization in process" $ case nextScheduled of
+    Right x   -> case nextScheduled of
         -- and no synchronization is scheduled
         Nothing -> return x
         -- next synchronization is scheduled
@@ -153,7 +157,7 @@ waitForLastSynchronizationResults tk@(SynchronizationProcessToken _ _ nextSchedu
 
       case nextScheduled of
         -- next synchronization is scheduled
-        Just _ -> traceShow "wait: next is scheduled - synchronizing" $ synchronizeAndWait
+        Just _ -> synchronizeAndWait
         -- no synchronization is scheduled
         Nothing -> return ee
 
@@ -178,7 +182,7 @@ scheduleSynchronize SynchronizationProcessToken{..} = do
 
   case syncStatus of
     -- currently theres no synchronization in process
-    Right _   -> traceShow "scheduleSynchronize: currently theres no synchronization in process" $ do
+    Right _   -> do
       -- if theres synchronization scheduled, unschedule
       when (isJust nextScheduled) (liftIO $ atomically (writeTVar nextIsScheduled Nothing))
       -- and synchronize
@@ -188,7 +192,7 @@ scheduleSynchronize SynchronizationProcessToken{..} = do
 
     -- there's synchronization in process
     Left _ -> -- set next synchro scheduled flag
-      traceShow "scheduleSynchronize: there is a synchronization in process" $ liftIO $ atomically (writeTVar nextIsScheduled (Just ()))
+      liftIO $ atomically (writeTVar nextIsScheduled (Just ()))
 
 
 -- | Given a way to access current blockchain data synchronizes its stored counterpart.
@@ -226,7 +230,7 @@ synchronize getMemBlockCount getMemBlock = do
                   else worker (currentBlockIx + 1)
 
                 else -- overwrite stored bloc
-                  traceShow ("Replacing:" ++ show currentBlockIx) withRightM (unsafeReplaceBlock currentBlockIx memBlock) $ \_ ->
+                  withRightM (unsafeReplaceBlock currentBlockIx memBlock) $ \_ ->
                     -- and recursively process previous stored block
                     worker (currentBlockIx - 1)
 

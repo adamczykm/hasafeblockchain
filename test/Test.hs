@@ -194,7 +194,7 @@ tempStoredBlockchainTests = withResource (prepareWorkingDirectory "stored_blockc
       assureDir cfg step
       clearStoredBlockchainTest cfg step
 
-      let blockCount = 50 :: Int
+      let blockCount = 500 :: Int
       ----------
       step $ "Appending "++ show blockCount ++ " random blocks"
       blocks :: TVar [Int] <- newTVarIO =<< replicateM (fromIntegral blockCount) randomIO
@@ -209,13 +209,13 @@ tempStoredBlockchainTests = withResource (prepareWorkingDirectory "stored_blockc
         memBlocksSnapshot <- (untrust <$>) <$> readTVarIO blocks
         failureOnLeft er2 $ assertEqual "Read blocks aren't equal to stored blocks" memBlocksSnapshot
 
-      step "Modifying half of blocks while synchronizing"
+      step "Modifying in-memory chain while synchronizing"
 
-      let replaceAtIndex n item ls = a ++ (item:b) where (a, _:b) = splitAt n ls
+      let replaceLast n items ls = a ++ items where a = take n ls
           modifySomeBlocks = do
-            forM_ [(blockCount `div` 2)..blockCount-1] $ \ix -> do
-              b <- randomIO
-              atomically $ modifyTVar' blocks (replaceAtIndex ix b)
+            replacedCount <- randomRIO (1,blockCount)
+            newBlocks <- replicateM replacedCount randomIO
+            atomically $ modifyTVar' blocks (replaceLast (length newBlocks) newBlocks)
             runReaderT (scheduleSynchronize syncToken) cfg
 
       (_,syncErr) <- concurrently modifySomeBlocks (runReaderT (waitForLastSynchronizationResults syncToken) cfg)
