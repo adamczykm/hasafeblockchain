@@ -1,7 +1,7 @@
 * Roadmap
 ** Next
-
 *** TODO stored blockchain synchronization tests
+    better dynamic chain synchronization test - x times replace random n last blocks
 
 * Leftouts and provisional code fragments
  

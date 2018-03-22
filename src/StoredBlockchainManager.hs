@@ -1,7 +1,10 @@
 
 module StoredBlockchainManager
 
-  ( synchronize
+  ( scheduleSynchronize
+  , waitForLastSynchronizationResults
+  , newSynchronizationProcessToken
+  , SynchronizationProcessToken
   , readStoredBlockchain
   , clearStoredBlockchain
   , StoredBlockchainManagerConfig(..)

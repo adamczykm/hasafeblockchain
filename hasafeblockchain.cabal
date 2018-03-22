@@ -49,6 +49,7 @@ library
               , network-transport-tcp
               , text
               , time
+              , stm
               , unagi-chan
   exposed-modules:
                   Lib, Test, P2P, NetworkDBus, NetworkProtocol, Types, Utils, Validation, Serialization, StoredBlockchainManager,  StoredBlockchainManager.Internal
@@ -77,6 +78,7 @@ test-suite hasafeblockchain-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
                 base >=4.7 && <5
+              , async
               , directory
               , mtl
               , exceptions
@@ -86,6 +88,7 @@ test-suite hasafeblockchain-test
               , tasty-hunit
               , tasty-quickcheck
               , tasty-smallcheck
+              , stm
               , hasafeblockchain
   other-modules:
       Paths_hasafeblockchain
