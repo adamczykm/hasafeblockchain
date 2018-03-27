@@ -1,8 +1,11 @@
 * Roadmap
 ** Next
-*** TODO stored blockchain synchronization tests
+*** DONE stored blockchain synchronization tests
+    CLOSED: [2018-03-27 wto 05:12]
     better dynamic chain synchronization test - x times replace random n last blocks
 
+
+** TODO add more functions to asyncchain, extract as a minilibrary
 
 * Leftouts and provisional code fragments
  
@@ -20,6 +23,8 @@ Filesystem access could be realised with "service interpreter pattern".
 * Future plans
 
 ** Mempool out of memory problem  
+
+   
 
 * Distribution related
 
