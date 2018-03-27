@@ -3,6 +3,7 @@
 *** TODO stored blockchain synchronization tests
     better dynamic chain synchronization test - x times replace random n last blocks
 
+
 * Leftouts and provisional code fragments
  
 
@@ -17,7 +18,9 @@ Filesystem access could be realised with "service interpreter pattern".
 
 
 * Future plans
-  
+
+** Mempool out of memory problem  
+
 * Distribution related
 
 ** TODO add req versions to dependencies in cabal and stack files

@@ -30,6 +30,7 @@ library
       src
   build-depends:
                 base >=4.7 && <5
+              , async
               , binary
               , protolude
               , bytestring
@@ -42,11 +43,15 @@ library
               , distributed-process-p2p
               , exceptions
               , filepath
+              , hashable
+              , HList
               , mtl
               , network
               , network-transport
               -- ^ temp
               , network-transport-tcp
+              , psqueues
+              , random
               , text
               , time
               , stm
