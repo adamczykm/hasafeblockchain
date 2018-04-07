@@ -1,11 +1,17 @@
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
 
 
@@ -17,6 +23,7 @@ import Control.Concurrent.Async
 import Control.Concurrent
 import Control.Exception.Base
 import System.Random
+import Data.Kind
 
 
 data AsyncChain :: [*] -> * where
@@ -27,16 +34,85 @@ infixr 1 >:$
 (>:$) :: (a -> IO b) -> HandlerChain as bs -> HandlerChain (a : as) (b : bs)
 (>:$) = HandleStep
 
+---------- not necessary for now
+
+type family ListRev (as :: [*]) :: [*] where
+  ListRev xs = ListRevHelper xs '[]
+
+type family ListRevHelper (as :: [*]) (bs :: [*]) :: [*] where
+  ListRevHelper '[] bs = bs
+  ListRevHelper (x ': xs) bs = ListRevHelper xs (x ': bs)
+
 
 data HandlerChain :: [*] -> [*] -> * where
   HFin :: HandlerChain '[] '[]
   HandleStep :: (a -> IO b) -> HandlerChain as bs -> HandlerChain (a ': as) (b ': bs)
+
+data PrefixHandlerChain :: [*] -> [*] -> * where
+  PrefHFin :: PrefixHandlerChain as bs
+  PrefHandleStep :: (a -> IO b) -> PrefixHandlerChain as bs -> PrefixHandlerChain (a ': as) (b ': bs)
+
+
+
+type family IsPrefix (as :: [*]) (bs :: [*]) :: Constraint where
+   IsPrefix '[] bs = ()
+   IsPrefix (a ': as) (b ': bs) = (a ~ b, IsPrefix as bs)
 
 
 data PrefixHList :: [*] -> * where
   PrefixNil :: PrefixHList as
   PrefixCons :: a -> PrefixHList as -> PrefixHList (a:as)
 
+
+data Nat = Z | S Nat
+
+class TEq (a :: Nat) (b :: Nat) where
+instance TEq Z Z
+instance (TEq a b) => TEq (S a) (S b)
+
+type family Length (as :: [*]) :: Nat where
+  Length '[] = Z
+  Length (_ ': as) = S (Length as)
+
+
+type family ListDiff (as :: [*]) (bs :: [*]) :: [*] where
+  ListDiff as '[] = as
+  ListDiff (a:as) (a:bs) = ListDiff as bs
+
+type family ListPrefixN (n :: Nat) (as :: [*]) :: [*] where
+  ListPrefixN Z _ = '[]
+  ListPrefixN _ '[] = '[]
+  ListPrefixN (S x) (a ': as) = a ': (ListPrefixN x as)
+
+
+
+waitHandleSome  :: (IsPrefix xs as, ListDiff xs as ~ d) => AsyncChain as -> HandlerChain xs ys -> IO (AsyncChain (ListDiff as xs), HList ys)
+waitHandleSome aschain HFin = return (aschain, HNil)
+waitHandleSome (AsyncChainStep asyncedChain) (HandleStep hndle handlers) = do
+  (x, startNext) <- wait asyncedChain
+  r <- hndle x
+  nextStep <- startNext
+  (\(a, rs) -> (a, HCons r rs)) <$> waitHandleSome nextStep handlers
+
+waitHandleSteps :: IsPrefix xs xs => AsyncChain xs -> HandlerChain xs ys -> IO (HList ys)
+waitHandleSteps hs a = snd <$> waitHandleSome hs a
+-- waitHandleSteps _ HFin = return HNil
+-- waitHandleSteps (AsyncChainStep asyncedChain) (HandleStep hndle handlers) = do
+--   (x, startNext) <- wait asyncedChain
+--   r <- hndle x
+--   nextStep <- startNext
+--   HCons r <$> waitHandleSteps nextStep handlers
+
+-- waitHandleSteps _ HFin = return HNil
+-- waitHandleSteps (AsyncChainStep asyncedChain) (HandleStep hndle handlers) = do
+--   (x, startNext) <- wait asyncedChain
+--   r <- hndle x
+--   nextStep <- startNext
+--   HCons r <$> waitHandleSteps nextStep handlers
+
+-- prefixHandlerChain :: (Prefixes as bs, Prefixes rs hs) => PrefixHandlerChain as rs -> PrefixHandlerChain bs hs
+-- prefixHandlerChain PrefHFin = PrefHFin
+-- prefixHandlerChain (PrefHandleStep action chain) = PrefHandleStep action (prefixHandlerChain chain)
 
 
 lengthPHL :: PrefixHList xs -> Int
@@ -71,6 +147,24 @@ pollAll (AsyncChainStep t) = do
 
 ----------
 
+
+data AsyncAutoStepTag = AsyncAutomatic | AsyncManual
+
+
+-- data AsyncChainHelper2 :: AsyncAutoStepTag -> [*] -> [*] -> * where
+--   AsyncChainHelperDone2 :: AsyncChainHelper2 AsyncAutomatic '[] '[]
+--   AsyncChainHelperStep2 :: Async (a, b, b -> IO (AsyncChainHelper2 as bs)) -> AsyncChainHelper2 (a:as) (b:bs)
+
+
+type family AutomatedHandlingPossible (a :: AsyncAutoStepTag) (v :: AsyncAutoStepTag) :: AsyncAutoStepTag where
+  AutomatedHandlingPossible AsyncAutomatic AsyncAutomatic = AsyncAutomatic
+  AutomatedHandlingPossible _              _              = AsyncManual
+
+
+
+data AsyncChainBuilder2 :: AsyncAutoStepTag -> [*] -> [*] -> *  where
+  AsyncChainStart2 :: IO (a, b) -> AsyncChainBuilder2 AsyncAutomatic (a : '[]) (b : '[])
+  AsyncChainAppend2 :: (b0 -> IO (a,b)) -> AsyncChainBuilder2 h as (b0 : bs) -> AsyncChainBuilder2 (AutomatedHandlingPossible AsyncAutomatic h) (a : as) (b ': b0 ': bs)
 
 
 data AsyncChainBuilder :: [*] -> [*] -> *  where
@@ -138,15 +232,6 @@ asyncChainStepAction  (AsyncChainAppend action _) = action
 asyncChainStartAction :: AsyncChainBuilder '[x] '[y] -> IO (x,y)
 asyncChainStartAction (AsyncChainStart action) = action
 
----------- not necessary for now
-
--- type family ListRev (as :: [*]) :: [*] where
---   ListRev xs = ListRevHelper xs '[]
-
--- type family ListRevHelper (as :: [*]) (bs :: [*]) :: [*] where
---   ListRevHelper '[] bs = bs
---   ListRevHelper (x ': xs) bs = ListRevHelper xs (x ': bs)
-
 
 
 -------------------------------------------------------------------
@@ -178,13 +263,19 @@ testAsyncChain :: IO (AsyncChain '[ Int, Bool])
 testAsyncChain = unHelperTemp <$> testAsyncChainHelper
 
 
-waitHandleSteps :: AsyncChain xs -> HandlerChain xs ys -> IO (HList ys)
-waitHandleSteps _ HFin = return HNil
-waitHandleSteps (AsyncChainStep asyncedChain) (HandleStep hndle handlers) = do
-  (x, startNext) <- wait asyncedChain
-  r <- hndle x
-  nextStep <- startNext
-  HCons r <$> waitHandleSteps nextStep handlers
+
+testSome1 :: IO Bool
+testSome1 = do
+  aschain <- start3StepAsyncChain $ AsyncChainStart ((randomIO :: IO Int) >>= \x->return (x, x)) &:>
+                                                     (\x -> heavyComputation >> return (even x, even x)) &:>
+                                                     (\x -> heavyComputation >> return (not x, x))
+
+  hLast . snd <$> waitHandleSome aschain (handleStepResult >:$ handleStepResult >:$ HFin)
+
+
+  where handleStepResult x = putStr "handling: " >> print x >> return x
+        heavyComputation = threadDelay 1500000
+
 
 
 testStepsAsyncChain :: IO ()
@@ -201,7 +292,3 @@ test1 = do
 
   where handleStepResult x = putStr "handling: " >> print x >> return x
         heavyComputation = threadDelay 1500000
-
-
-
-
